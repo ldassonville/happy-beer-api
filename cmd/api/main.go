@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/ldassonville/beer-puller-api/internal/dispenser"
+	"github.com/ldassonville/beer-puller-api/internal/dispensers"
+	"github.com/ldassonville/beer-puller-api/internal/records"
 	"github.com/ldassonville/beer-puller-api/pkg/core/ginutils"
 	"github.com/ldassonville/beer-puller-api/pkg/core/ioc"
 	"github.com/sirupsen/logrus"
@@ -24,13 +25,11 @@ type APISecrets struct {
 }
 
 func main() {
-
 	injector := new(ioc.Injector)
 
 	initApp(injector)
 
 	start(injector)
-
 }
 
 func initApp(injector *ioc.Injector) {
@@ -59,7 +58,8 @@ func initApp(injector *ioc.Injector) {
 	}
 	injector.Register(ioc.IocEngine, engine)
 
-	dispenser.Setup(injector)
+	records.Setup(injector)
+	dispensers.Setup(injector)
 }
 
 func start(injector *ioc.Injector) {
