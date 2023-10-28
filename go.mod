@@ -1,4 +1,4 @@
-module github.com/ldassonville/beer-puller-api
+module github.com/ldassonville/happy-beer-api
 
 go 1.21.2
 
