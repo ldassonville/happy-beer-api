@@ -2,7 +2,7 @@ package records
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
 	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -19,6 +19,8 @@ func NewHandler(svc *Service) *Handler {
 }
 
 func (h *Handler) Search(c *gin.Context) {
+
+	c.Writer.Header().Add("Access-Control-Allow-Origin", "*")
 
 	events, err := h.svc.Search(c.Request.Context())
 	if err != nil {

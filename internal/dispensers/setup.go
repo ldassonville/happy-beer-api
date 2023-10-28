@@ -2,9 +2,9 @@ package dispensers
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ldassonville/beer-puller-api/internal/dispensers/storage"
-	"github.com/ldassonville/beer-puller-api/internal/records"
-	"github.com/ldassonville/beer-puller-api/pkg/core/ioc"
+	"github.com/ldassonville/happy-beer-api/internal/dispensers/storage"
+	"github.com/ldassonville/happy-beer-api/internal/records"
+	"github.com/ldassonville/happy-beer-api/pkg/core/ioc"
 )
 
 func Setup(injector *ioc.Injector) {
@@ -20,6 +20,7 @@ func Setup(injector *ioc.Injector) {
 	engine.Handle("GET", "/dispensers/:ref", handler.Get)
 	engine.Handle("GET", "/dispensers", handler.Search)
 	engine.Handle("DELETE", "/dispensers/:ref", handler.Delete)
+	engine.Handle("PUT", "/dispensers/:ref", handler.Update)
 
 	engine.Handle("GET", "/dispensers/_all/events", handler.Events)
 }

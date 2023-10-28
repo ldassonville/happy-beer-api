@@ -1,73 +1,131 @@
+//go:build integration
+
 package http
 
 import (
-	"crypto/tls"
-	"errors"
-	"fmt"
-	"github.com/ldassonville/beer-puller-api/pkg/client"
-	"io"
-	"net/http"
-	"time"
+	"context"
+	"github.com/ldassonville/happy-beer-api/internal/beer"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
+	apipuller "github.com/ldassonville/happy-beer-api/pkg/client"
+	"github.com/sirupsen/logrus"
+	"testing"
 )
 
-const (
-	headerNameAccept = "Accept"
+func getClient() apipuller.Client {
 
-	headerValueApplicationJSON = "application/json"
-)
-
-type DebugLogger func(message string, args ...interface{})
-
-type Config struct {
-	ApiUrl             string
-	DebugHttp          bool
-	DebugLogger        DebugLogger
-	InsecureSkipVerify bool
-}
-
-type Client struct {
-	httpClient *http.Client
-	config     *Config
-}
-
-func NewClient(config *Config) client.Client {
-
-	var tr http.RoundTripper = &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: config.InsecureSkipVerify},
+	config := &Config{
+		ApiUrl: "http://localhost:9000",
 	}
 
-	return &Client{
-		httpClient: &http.Client{
-			Timeout:   time.Second * 10,
-			Transport: tr,
-		},
-		config: config,
+	return NewClient(config)
+}
+
+func getFirstDispenser(ctx context.Context, client apipuller.Client) (*api.Dispenser, error) {
+	dispensers, err := client.SearchDispensers(ctx)
+	if err != nil {
+		logrus.WithError(err).Errorf("fail to obtain dispensers")
+		return nil, err
+	}
+
+	if len(dispensers) > 0 {
+		return dispensers[0], nil
+	}
+	return nil, nil
+}
+
+func TestClient_GetDispenser(t *testing.T) {
+
+	ctx := context.Background()
+	client := getClient()
+
+	dispenser, _ := getFirstDispenser(ctx, client)
+	if dispenser == nil {
+		logrus.Info("skipping test. base is empty")
+		return
+	}
+
+	dispensers, err := client.GetDispenser(ctx, dispenser.Ref)
+	if err != nil {
+		t.Fail()
+		return
+	}
+
+	println(dispensers)
+}
+
+func TestClient_SearchDispensers(t *testing.T) {
+
+	ctx := context.Background()
+	client := getClient()
+
+	dispensers, err := client.SearchDispensers(ctx)
+	if err != nil {
+		t.Fail()
+		return
+	}
+
+	println(dispensers)
+}
+
+func TestClient_CreateDispenser(t *testing.T) {
+
+	ctx := context.Background()
+	client := getClient()
+
+	dispenser := &api.DispenserEditable{
+		Beer: beer.EasyBeer,
+		Size: string(api.DispenserSizeL),
+	}
+
+	createdDispenser, err := client.CreateDispenser(ctx, dispenser)
+	if err != nil {
+		logrus.WithError(err).Error("fail to create dispenser")
+		t.Fail()
+	}
+
+	println(createdDispenser)
+}
+
+func TestClient_DeleteDispenser(t *testing.T) {
+
+	ctx := context.Background()
+	client := getClient()
+
+	dispenser, _ := getFirstDispenser(ctx, client)
+	if dispenser == nil {
+		logrus.Info("skipping test. base is empty")
+		return
+	}
+
+	dispenserRef := dispenser.Ref
+	err := client.DeleteDispenser(ctx, dispenserRef)
+	if err != nil {
+		logrus.WithError(err).Errorf("fail to deleting dispenser ref %s", dispenserRef)
+		t.Fail()
+		return
 	}
 }
 
-func (e *Client) handleInvalidHttpCode(resp http.Response) error {
-	switch resp.StatusCode {
-	case http.StatusUnauthorized:
-		return errors.New("unauthorized by API server")
-	case http.StatusForbidden:
-		return errors.New("forbidden by API server (you are probably missing access rights)")
-	case http.StatusBadRequest:
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return errors.New(fmt.Sprintf("invalid request to API server (probably due to some input value)\nbody: %s", string(bodyBytes)))
-	case http.StatusNotFound:
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return errors.New(fmt.Sprintf("not found in API server\nbody: %s", string(bodyBytes)))
-	case http.StatusServiceUnavailable:
-		return errors.New("API server currently down")
-	case http.StatusPreconditionFailed:
-		return errors.New("precondition failed")
-	case http.StatusConflict:
-		return errors.New("resource conflict")
-	case http.StatusInternalServerError:
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return errors.New(fmt.Sprintf("an error happened on the API server\nbody: %s", string(bodyBytes)))
-	default:
-		bodyBytes, _ := io.ReadAll(resp.Body)
-		return errors.New(fmt.Sprintf("an unknown error happened while requesting the API server\ncode: %d\nbody: %s", resp.StatusCode, string(bodyBytes)))
+func TestClient_UpdateDispenser(t *testing.T) {
+
+	ctx := context.Background()
+	client := getClient()
+
+	dispenser, _ := getFirstDispenser(ctx, client)
+	if dispenser == nil {
+		logrus.Info("skipping test. base is empty")
+		return
 	}
+
+	dispenser.Size = string(api.DispenserSizeS)
+
+	updatedDispenser, err := client.UpdateDispenser(ctx, dispenser)
+	if err != nil {
+		logrus.WithError(err).Errorf("fail to update dispenser ref %s", dispenser.Ref)
+		t.Fail()
+		return
+	}
+
+	println(updatedDispenser)
+
 }

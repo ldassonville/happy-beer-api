@@ -2,8 +2,8 @@ package records
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/ldassonville/beer-puller-api/internal/records/storage"
-	"github.com/ldassonville/beer-puller-api/pkg/core/ioc"
+	"github.com/ldassonville/happy-beer-api/internal/records/storage"
+	"github.com/ldassonville/happy-beer-api/pkg/core/ioc"
 )
 
 const (

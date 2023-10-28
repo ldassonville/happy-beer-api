@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
+	"slices"
 	"sort"
 	"sync"
 )
@@ -45,19 +46,24 @@ func (dao *MemoryStorage) DeleteByRef(ctx context.Context, ref string) error {
 
 func (dao *MemoryStorage) Create(ctx context.Context, dispenser *api.Dispenser) (*api.Dispenser, error) {
 
-	dispenser.Ref = uuid.NewString()[:8]
+	if dispenser.Ref == "" {
+		dispenser.Ref = uuid.NewString()[:8]
+	}
 
 	dao.registry.Store(dispenser.Ref, dispenser)
 
 	return dispenser, nil
 }
 
-func (dao *MemoryStorage) Search(ctx context.Context) ([]*api.Dispenser, error) {
+func (dao *MemoryStorage) Search(ctx context.Context, query *api.DispenserQuery) ([]*api.Dispenser, error) {
 
 	var dispensers []*api.Dispenser = nil
 	dao.registry.Range(func(key any, value any) bool {
 		dispenser := value.(*api.Dispenser)
-		dispensers = append(dispensers, dispenser)
+
+		if slices.Contains(query.Statuses, dispenser.Status.Status) {
+			dispensers = append(dispensers, dispenser)
+		}
 		return true
 	})
 

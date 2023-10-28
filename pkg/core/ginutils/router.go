@@ -1,7 +1,9 @@
 package ginutils
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 func NewEngine() (*gin.Engine, error) {
@@ -10,25 +12,25 @@ func NewEngine() (*gin.Engine, error) {
 
 	engine := gin.Default()
 
-	engine.Use(func(c *gin.Context) {
+	engine.Use(gin.Recovery())
 
-		c.Writer.Header().Add("Access-Control-Allow-Origin", c.Request.Header.Get("Origin"))
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With, Access-Control-Allow-Headers, Access-Control-Allow-Origin")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, PATCH")
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:9000", "http://localhost:4200"}
+	//config.AllowAllOrigins = true
 
-		if c.Request.Method == "OPTIONS" {
+	config.AllowCredentials = true
+	config.AllowHeaders = []string{"Origin", "X-Api-Key", "X-Requested-With", "Content-Type", "Accept", "Authorization", "Access-Control-Allow-Origin"}
+	config.AllowMethods = []string{"POST", "PUT", "PATCH", "GET", "DELETE", "OPTIONS"}
+	engine.Use(cors.New(config))
 
-			c.AbortWithStatus(204)
-			return
-		}
+	//Access-Control-Allow-Origin: http://example.com
 
-		c.Next()
-	})
-
-	//engine.Use(gin.Recovery())
 	//engine.Use(gintrace.Middleware("happy-beer-api"))
 	//engine.Use(logger.HttpLoggingMiddleware)
+
+	engine.GET("/", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
 
 	return engine, nil
 }

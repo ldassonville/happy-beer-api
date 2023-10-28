@@ -2,11 +2,11 @@ package storage
 
 import (
 	"context"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
 )
 
 type Storage interface {
-	Search(ctx context.Context) ([]*api.Dispenser, error)
+	Search(ctx context.Context, query *api.DispenserQuery) ([]*api.Dispenser, error)
 
 	Create(ctx context.Context, dispenser *api.Dispenser) (*api.Dispenser, error)
 

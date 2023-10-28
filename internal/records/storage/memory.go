@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
 	"sort"
 	"sync"
 )

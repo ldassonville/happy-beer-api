@@ -2,9 +2,9 @@ package records
 
 import (
 	"context"
-	"github.com/ldassonville/beer-puller-api/internal/records/storage"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
-	"github.com/ldassonville/beer-puller-api/pkg/core/event"
+	"github.com/ldassonville/happy-beer-api/internal/records/storage"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/core/event"
 	"github.com/sirupsen/logrus"
 	"time"
 )

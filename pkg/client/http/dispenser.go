@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
 	"io"
 	"net/http"
 )
@@ -103,7 +103,7 @@ func (e *Client) CreateDispenser(ctx context.Context, dispenser *api.DispenserEd
 	return result, nil
 }
 
-func (e *Client) UpdateDispensers(ctx context.Context, dispenser *api.Dispenser) (*api.Dispenser, error) {
+func (e *Client) UpdateDispenser(ctx context.Context, dispenser *api.Dispenser) (*api.Dispenser, error) {
 	b, err := json.Marshal(dispenser)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("an error happend while building request body for saving dispenser %s! (cause: %s)", dispenser.Ref, err.Error()))
@@ -137,7 +137,7 @@ func (e *Client) UpdateDispensers(ctx context.Context, dispenser *api.Dispenser)
 	return result, nil
 }
 
-func (e *Client) DeleteDispensers(ctx context.Context, name string) error {
+func (e *Client) DeleteDispenser(ctx context.Context, name string) error {
 
 	// create request
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/dispensers/%s", e.config.ApiUrl, name), nil)

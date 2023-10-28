@@ -1,9 +1,10 @@
 package beer
 
-import "github.com/ldassonville/beer-puller-api/pkg/api"
+import "github.com/ldassonville/happy-beer-api/pkg/api"
 
 const EasyBeer = "EASY_BEER"
 const LatencyBeer = "LATENCY_BEER"
+const LatencyTripleBeer = "LATENCY_TRIPLE_BEER"
 const LazyBeer = "LAZY_BEER"
 const FatalBeer = "FATAL_BEER"
 const StolenBeer = "STOLEN_BEER"
@@ -19,6 +20,11 @@ var Catalog = []*api.Beer{
 		Code: LatencyBeer,
 		Name: "Latency beer",
 		Desc: "Very popular beer, so it's take a long time to obtain it. You'll have to be patient to obtain your request.",
+	},
+	{
+		Code: LatencyTripleBeer,
+		Name: "Latency Triple beer",
+		Desc: "Very long latency beer. For fans of high latency",
 	},
 	{
 		Code: LazyBeer,

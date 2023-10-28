@@ -19,18 +19,26 @@ type DispenserEditable struct {
 type Dispenser struct {
 	DispenserEditable `yaml:",inline" bson:",inline"`
 
-	Metadata *Metadata      `json:"metadata" yaml:"metadata" `
-	State    DispenserState `json:"state" yaml:"state"`
+	Metadata *Metadata `json:"metadata" yaml:"metadata" `
+
+	State DispenserState `json:"state" yaml:"state"`
 
 	// State for
 	Status *DispenserStatus `json:"status" yaml:"status"`
 }
 
 type DispenserStatus struct {
-	Hidden bool           `json:"hidden" yaml:"hidden"`
 	Status InternalStatus `json:"status,omitempty" yaml:"status,omitempty"`
-	Info   string         `json:"info,omitempty" yaml:"info,omitempty"`
+	Reason string         `json:"reason,omitempty" yaml:"reason,omitempty"`
 }
+
+type DispenserSize string
+
+const (
+	DispenserSizeS DispenserSize = "S"
+	DispenserSizeM DispenserSize = "M"
+	DispenserSizeL DispenserSize = "L"
+)
 
 type DispenserState string
 
@@ -45,9 +53,11 @@ const (
 type InternalStatus string
 
 const (
-	InternalStatusStolen     InternalStatus = "STOLEN"
-	InternalStatusFatal      InternalStatus = "FATAL"
-	InternalStatusProcessing InternalStatus = "PROCESSING"
-	InternalStatusOk         InternalStatus = "OK"
-	InternalStatusReturned   InternalStatus = "RETURNED"
+	InternalStatusPending  InternalStatus = "PENDING"
+	InternalStatusArchived InternalStatus = "ARCHIVED"
+	InternalStatusActive   InternalStatus = "ACTIVE"
 )
+
+type DispenserQuery struct {
+	Statuses []InternalStatus
+}

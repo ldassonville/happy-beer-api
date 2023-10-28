@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ldassonville/beer-puller-api/internal/beer"
-	"github.com/ldassonville/beer-puller-api/internal/dispensers/storage"
-	"github.com/ldassonville/beer-puller-api/internal/records"
-	"github.com/ldassonville/beer-puller-api/pkg/api"
-	"github.com/ldassonville/beer-puller-api/pkg/core/event"
+	"github.com/ldassonville/happy-beer-api/internal/beer"
+	"github.com/ldassonville/happy-beer-api/internal/dispensers/storage"
+	"github.com/ldassonville/happy-beer-api/internal/records"
+	"github.com/ldassonville/happy-beer-api/pkg/api"
+	"github.com/ldassonville/happy-beer-api/pkg/core/event"
 	"github.com/sirupsen/logrus"
 	"strings"
 	"time"
@@ -29,9 +29,9 @@ func NewService(dao storage.Storage, recordsSvc *records.Service) *Service {
 	}
 }
 
-func (s *Service) Search(ctx context.Context) ([]*api.Dispenser, error) {
+func (s *Service) Search(ctx context.Context, query *api.DispenserQuery) ([]*api.Dispenser, error) {
 
-	dispensers, err := s.dao.Search(ctx)
+	dispensers, err := s.dao.Search(ctx, query)
 
 	return dispensers, err
 
@@ -100,32 +100,78 @@ func (s *Service) preCreateHook(dispenser *api.Dispenser) bool {
 
 	dispenser.State = api.DispenserReady
 	dispenser.Status = &api.DispenserStatus{
-		Status: api.InternalStatusOk,
+		Status: api.InternalStatusActive,
 	}
 
 	switch dispenser.Beer {
 	case beer.LatencyBeer:
 		dispenser.State = api.DispenserNone
-		dispenser.Status.Status = api.InternalStatusProcessing
-		dispenser.Status.Hidden = true
-		dispenser.Status.Info = "Simulate sync request with latency. Response not delivered yet"
+		dispenser.Status.Status = api.InternalStatusPending
+		dispenser.Status.Reason = "Simulate sync request with latency. Response not delivered yet"
+	case beer.LatencyTripleBeer:
+		dispenser.State = api.DispenserNone
+		dispenser.Status.Status = api.InternalStatusPending
+		dispenser.Status.Reason = "Simulate sync request with triple latency. Response not delivered yet"
 	case beer.StolenBeer:
 	case beer.EasyBeer:
 	case beer.LazyBeer:
 		s.addRecord(context.Background(), "the dispenser is refreshing...", dispenser)
 		dispenser.State = api.DispenserRefreshing
-		dispenser.Status.Status = api.InternalStatusOk
-		dispenser.Status.Info = "Simulate async ready process"
+		dispenser.Status.Status = api.InternalStatusActive
+		dispenser.Status.Reason = "Active, but not ready. Simulate async ready process"
 	case beer.FatalBeer:
 		// handle error
 		s.addRecord(context.Background(), "the dispenser request is in failure", dispenser)
 		dispenser.State = api.DispenserNone
-		dispenser.Status.Status = api.InternalStatusFatal
-		dispenser.Status.Info = "Simulate request in failure"
-		dispenser.Status.Hidden = true
+		dispenser.Status.Status = api.InternalStatusArchived
+		dispenser.Status.Reason = "Simulate request in failure"
 		return true
 	}
 	return false
+}
+
+func (s *Service) simulateAsyncStatus(dispenser *api.Dispenser, duration time.Duration) {
+
+	time.Sleep(duration)
+	d, err := s.dao.GetByRef(context.Background(), dispenser.Ref)
+	if err != nil {
+		logrus.WithError(err).Warnf("fail to change status")
+		return
+	}
+
+	previousStatus := strings.ToLower(string(d.State))
+	d.State = api.DispenserReady
+	d.Status.Status = api.InternalStatusActive
+	d.Status.Reason = "Async process simulation terminated"
+
+	_, err = s.Update(context.Background(), d)
+	if err != nil {
+		logrus.WithError(err).Warnf("fail to update status at callback")
+		return
+	}
+	s.addRecord(context.Background(), fmt.Sprintf("the dispenser change state from %s to ready", previousStatus), dispenser)
+
+}
+
+func (s *Service) simulateLatency(dispenser *api.Dispenser, duration time.Duration) {
+
+	s.addRecord(context.Background(), fmt.Sprintf("the dispenser request have latency"), dispenser)
+	// Take time to create the beer
+	time.Sleep(duration)
+
+	dispenser.State = api.DispenserReady
+	dispenser.Status.Status = api.InternalStatusActive
+	dispenser.Status.Reason = "Simulation of request with latency terminated"
+	_, err := s.Update(context.Background(), dispenser)
+	if err != nil {
+		logrus.WithError(err).Warnf("fail to change status")
+	}
+}
+
+func (s *Service) simulateStolen(dispenser *api.Dispenser, duration time.Duration) {
+	time.Sleep(duration)
+	s.logicalDeleteByRef(context.Background(), dispenser.Ref, api.InternalStatusArchived, "The dispenser been has been stolen")
+	s.addRecord(context.Background(), "the dispenser have been stolen", dispenser)
 }
 
 func (s *Service) postCreateHook(dispenser *api.Dispenser) error {
@@ -135,57 +181,19 @@ func (s *Service) postCreateHook(dispenser *api.Dispenser) error {
 	case beer.FatalBeer:
 	case beer.EasyBeer:
 	case beer.LazyBeer:
-		go func(ref string) {
-			time.Sleep(30 * time.Second)
-			d, err := s.dao.GetByRef(context.Background(), ref)
-			if err != nil {
-				logrus.WithError(err).Warnf("fail to change status")
-				return
-			}
-
-			previousStatus := strings.ToLower(string(d.State))
-			d.State = api.DispenserReady
-			d.Status.Status = api.InternalStatusOk
-			d.Status.Info = "Async process simulation terminated"
-
-			_, err = s.Update(context.Background(), d)
-			if err != nil {
-				logrus.WithError(err).Warnf("fail to update status at callback")
-				return
-			}
-			s.addRecord(context.Background(), fmt.Sprintf("the dispenser change state from %s to ready", previousStatus), dispenser)
-		}(dispenser.Ref)
-
+		go s.simulateAsyncStatus(dispenser, 30*time.Second)
+	case beer.LatencyTripleBeer:
+		go s.simulateLatency(dispenser, 20*time.Second)
 	case beer.LatencyBeer:
-
-		s.addRecord(context.Background(), fmt.Sprintf("the dispenser request have latency"), dispenser)
-		// Take time to create the beer
-		time.Sleep(55 * time.Second)
-
-		dispenser.State = api.DispenserReady
-		dispenser.Status.Status = api.InternalStatusOk
-		dispenser.Status.Info = "Simulation of request with latency terminated"
-		dispenser.Status.Hidden = false
-		_, err := s.Update(context.Background(), dispenser)
-		if err != nil {
-			logrus.WithError(err).Warnf("fail to change status")
-		}
-
+		go s.simulateLatency(dispenser, 60*time.Second)
 	case beer.StolenBeer:
-
-		// Stolen beer will disappear un 3min
-		go func(ref string) {
-			time.Sleep(90 * time.Second)
-			s.logicalDeleteByRef(context.Background(), ref, api.InternalStatusStolen, "The dispenser been has been stolen")
-			s.addRecord(context.Background(), "the dispenser have been stolen", dispenser)
-		}(dispenser.Ref)
+		go s.simulateStolen(dispenser, 60*time.Second)
 	}
 
 	return nil
 }
 
-/*
-func (s *Service) DeleteByRef(ctx context.Context, ref string) error {
+func (s *Service) PurgeByRef(ctx context.Context, ref string) error {
 
 	dispenser, err := s.dao.GetByRef(ctx, ref)
 	if err != nil {
@@ -206,11 +214,11 @@ func (s *Service) DeleteByRef(ctx context.Context, ref string) error {
 	s.addRecord(context.Background(), fmt.Sprintf("the dispenser have been remove"), dispenser)
 
 	return err
-}*/
+}
 
 func (s *Service) DeleteByRef(ctx context.Context, ref string) error {
 
-	return s.logicalDeleteByRef(ctx, ref, api.InternalStatusReturned, "The dispenser has been returned (api ask for delete) ")
+	return s.logicalDeleteByRef(ctx, ref, api.InternalStatusArchived, "The dispenser has been returned (api receive delete request) ")
 }
 
 func (s *Service) logicalDeleteByRef(ctx context.Context, ref string, status api.InternalStatus, reason string) error {
@@ -227,8 +235,7 @@ func (s *Service) logicalDeleteByRef(ctx context.Context, ref string, status api
 
 	dispenser.State = api.DispenserNone
 	dispenser.Status.Status = status
-	dispenser.Status.Info = reason
-	dispenser.Status.Hidden = true
+	dispenser.Status.Reason = reason
 
 	dispenser, err = s.dao.Update(ctx, dispenser)
 	if err != nil {
